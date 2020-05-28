@@ -1,55 +1,67 @@
 import math
 from sklearn.model_selection import KFold
-from sklearn.metrics.scorer import check_scoring
+from sklearn.metrics import mean_squared_error
 
 class TibFold:
-  _X
-  _y  
-  _n_splits
-  _kf
-  _best_error = math.inf
-  _estimator
 
-  def __init__(self, X, y, n_splits, scoring=None):
+  def __init__(self, X, y, n_splits, scorer = mean_squared_error):
     self._X = X
     self._y = y
+    self._best_test_error = math.inf
+    self._best_train_error = math.inf
     self._n_splits = n_splits
     self._fbest_values = [math.inf] * n_splits
     self._kf = KFold(n_splits = n_splits)
-    self._scorer = check_scoring(estimator, scoring=scoring)
+    self._scorer = scorer
 
-  def cross_val_score(estimator):
+  def cross_val_score(self, estimator):
     test_sum = 0
+    train_sum = 0
     fold = 0
 
-    for train_index, test_index in _kf.split(_X):
-      X_train, X_test = _X[train_index], _X[test_index]
-      y_train, y_test = _y[train_index], _y[test_index]
+    for train_index, test_index in self._kf.split(self._X):
+      X_train, X_test = self._X[train_index], self._X[test_index]
+      y_train, y_test = self._y[train_index], self._y[test_index]
 
       estimator.fit(X_train, y_train)
+
+      y_train_pred = estimator.predict(X_train)
+      y_test_pred = estimator.predict(X_test)
       
-      train_error = self._scorer(estimator, X_train, y_train)
-      test_error = self._scorer(estimator, X_test, y_test)
+      train_error = self._scorer(y_train, y_train_pred)
+      test_error = self._scorer(y_test, y_test_pred)
+
+      train_sum += train_error
       test_sum += test_error
 
-      if test_error < _fbest_values[fold] :
-        _fbest_values[i] = test_error
+      if test_error < self._fbest_values[fold]:
+        self._fbest_values[fold] = test_error
 
-      fold++
+      fold += 1
     
-    test_error = test_sum / _n_splits
+    train_error = train_sum / self._n_splits
+    test_error = test_sum / self._n_splits
 
-    if test_error < _best_error:
-      _best_error = test_error
-      _estimator = estimator
+    if test_error < self._best_test_error:
+      self._best_test_error = test_error
+      self._best_train_error = train_error
+      self._estimator = estimator
 
-  def get_bias():
+    return test_error
+
+  def get_bias(self):
     fold_sum = 0
 
-    for i in range(0, _n_splits):
-      fold_sum += _best_error - _fbest_values[i]
+    for i in range(0, self._n_splits):
+      fold_sum += self._best_test_error - self._fbest_values[i]
 
-    return fold_sum / _n_splits
+    return fold_sum / self._n_splits
 
-  def get_best():
-    return _estimator
+  def get_test_error(self):
+    return self._best_test_error
+
+  def get_train_error(self):
+    return self._best_train_error
+
+  def get_best(self):
+    return self._estimator
